@@ -4,10 +4,9 @@ Author URI: http://www.twitter.com/bozdoz/
 Plugin URI: http://wordpress.org/plugins/leaflet-map/
 Contributors: bozdoz
 Donate link: https://www.gittip.com/bozdoz/
-Tags: leaflet, map, javascript, mapquest
+Tags: leaflet, map, javascript, mapquest, shortcode
 Requires at least: 3.0.1
 Tested up to: 3.8.1
-Version: 1.0
 Stable tag: 1.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
