@@ -3,7 +3,7 @@
     Plugin Name: Leaflet Map
     Plugin URI: http://twitter.com/bozdoz/
     Description: A plugin for creating a Leaflet JS map with a shortcode.
-    Version: 1.0
+    Version: 1.3
     Author: Benjamin J DeLong
     Author URI: http://twitter.com/bozdoz/
     License: GPL2
@@ -17,7 +17,7 @@ if (!class_exists('Leaflet_Map_Plugin')) {
             'text' => array(
                 'leaflet_map_tile_url' => 'http://otile{s}.mqcdn.com/tiles/1.0.0/map/{z}/{x}/{y}.jpg',
                 'leaflet_map_tile_url_subdomains' => '1234',
-                'leaflet_js_version' => '0.7.2',
+                'leaflet_js_version' => '0.7.3',
                 'leaflet_default_zoom' => '16',
                 'leaflet_default_height' => '250',
                 'leaflet_default_width' => '100%',
@@ -32,7 +32,7 @@ if (!class_exists('Leaflet_Map_Plugin')) {
         public static $helptext = array(
                 'leaflet_map_tile_url' => 'See some example tile URLs at <a href="http://developer.mapquest.com/web/products/open/map" target="_blank">MapQuest</a>.  Can be set per map with shortcode attribute <br/> <code>[leaflet-map tileurl="http://otile{s}.mqcdn.com/tiles/1.0.0/map/{z}/{x}/{y}.jpg"]</code>',
                 'leaflet_map_tile_url_subdomains' => 'Some maps get tiles from multiple servers with subdomains such as a,b,c,d or 1,2,3,4; can be set per map with the shortcode <br/> <code>[leaflet-map subdomains="1234"]</code>',
-                'leaflet_js_version' => '0.7.2 is newest as of this plugin\'s conception',
+                'leaflet_js_version' => '0.7.3 is newest as of this plugin\'s conception',
                 'leaflet_default_zoom' => 'Can set per map in shortcode or adjust for all maps here; e.g. <br /> <code>[leaflet-map zoom="5"]</code>',
                 'leaflet_default_height' => 'Can set per map in shortcode or adjust for all maps here. Values can include "px" but it is not necessary.  Can also be %; e.g. <br/> <code>[leaflet-map height="250"]</code>',
                 'leaflet_default_width' => 'Can set per map in shortcode or adjust for all maps here. Values can include "px" but it is not necessary.  Can also be %; e.g. <br/> <code>[leaflet-map height="250"]</code>',
@@ -97,6 +97,48 @@ if (!class_exists('Leaflet_Map_Plugin')) {
             include 'templates/find-on-map.php';
         }
 
+        public function google_geocode ( $address ) {
+            
+            /* check if address exists in cookie */
+            $cookie_address = preg_replace('~[=,; \t\r\n\013\014]~', '', $address);
+            $address = urlencode($address);
+
+            if (isset($_COOKIE[$cookie_address])) {
+                $location = $_COOKIE[$cookie_address];
+                $location = explode(' ', $location);
+                return (Object) array('lat' => $location[0], 'lng' => $location[1]);
+            }
+
+            /* try geocoding */
+            $google_geocode = 'https://maps.googleapis.com/maps/api/geocode/json?address=';
+            $geocode_url = $google_geocode . $address;
+            $json = file_get_contents($geocode_url);
+            $json = json_decode($json);
+
+            if ($json->{'status'} == 'OK') {
+                
+                $location = $json->{'results'}[0]->{'geometry'}->{'location'};
+
+                /* set cookie via ajax, since shortcodes
+                execute after headers are sent */
+
+                $cookie_url = WP_PLUGIN_URL . '/leaflet-map/set-cookie.php?';
+                $cookie_url .= 'address=' . $cookie_address;
+                $cookie_url .= '&location=' . $location->{'lat'} . '+' . $location->{'lng'};
+
+                echo "<script>
+                (function () {
+                    var xmlhttp = new XMLHttpRequest();
+                    xmlhttp.open('GET', '$cookie_url', true);
+                    xmlhttp.send();
+                })();
+                </script>";
+
+                return $json->{'results'}[0]->{'geometry'}->{'location'};
+            }
+            return (Object) array('lat' => 0, 'lng' => 0);
+        }
+
         public function map_shortcode ( $atts ) {
             
             if (!$this::$leaflet_map_count) {
@@ -106,16 +148,18 @@ if (!class_exists('Leaflet_Map_Plugin')) {
 
             $leaflet_map_count = $this::$leaflet_map_count;
 
+            $defaults = array_merge($this::$defaults['text'], $this::$defaults['checks']);
+
             /* defaults from db */
-            $default_zoom = get_option('leaflet_default_zoom', '16');
-            $default_zoom_control = get_option('leaflet_show_zoom_controls', '0');
-            $default_height = get_option('leaflet_default_height', '250');
-            $default_width = get_option('leaflet_default_width', '250');
-            $default_show_attr = get_option('leaflet_show_attribution', '1');
-            $default_tileurl = get_option('leaflet_map_tile_url', 'http://otile{s}.mqcdn.com/tiles/1.0.0/map/{z}/{x}/{y}.jpg');
-            $default_subdomains = get_option('leaflet_map_tile_url_subdomains', '1234');
-            $default_scrollwheel = get_option('leaflet_scroll_wheel_zoom', '0');
-            $version = get_option('leaflet_version', '0.7.2');
+            $default_zoom = get_option('leaflet_default_zoom', $defaults['leaflet_default_zoom']);
+            $default_zoom_control = get_option('leaflet_show_zoom_controls', $defaults['leaflet_show_zoom_controls']);
+            $default_height = get_option('leaflet_default_height', $defaults['leaflet_default_height']);
+            $default_width = get_option('leaflet_default_width', $defaults['leaflet_default_width']);
+            $default_show_attr = get_option('leaflet_show_attribution', $defaults['leaflet_show_attribution']);
+            $default_tileurl = get_option('leaflet_map_tile_url', $defaults['leaflet_map_tile_url']);
+            $default_subdomains = get_option('leaflet_map_tile_url_subdomains', $defaults['leaflet_map_tile_url_subdomains']);
+            $default_scrollwheel = get_option('leaflet_scroll_wheel_zoom', $defaults['leaflet_scroll_wheel_zoom']);
+            $version = get_option('leaflet_js_version', $defaults['leaflet_js_version']);
 
             /* leaflet style and script */
             wp_enqueue_style('leaflet_stylesheet', 'http://cdn.leafletjs.com/leaflet-'.$version.'/leaflet.css', false);
@@ -124,9 +168,18 @@ if (!class_exists('Leaflet_Map_Plugin')) {
             if ($atts) {
                 extract($atts);
             }
-            /* only really necessary $atts */
+
+            /* only really necessary $atts are the location variables */
+            if (!empty($address)) {
+                /* try geocoding */
+                $location = $this::google_geocode($address);
+                $lat = $location->{'lat'};
+                $lng = $location->{'lng'};
+            }
+
             $lat = empty($lat) ? '44.67' : $lat;
             $lng = empty($lng) ? '-63.61' : $lng;
+
 
             /* check more user defined $atts against defaults */
             $tileurl = empty($tileurl) ? $default_tileurl : $tileurl;
@@ -197,6 +250,13 @@ if (!class_exists('Leaflet_Map_Plugin')) {
             if (!empty($atts)) extract($atts);
 
             $draggable = empty($draggable) ? 'false' : $draggable;
+            $visible = ($visible == 'true');
+
+            if (!empty($address)) {
+                $location = $this::google_geocode($address);
+                $lat = $location->{'lat'};
+                $lng = $location->{'lng'};
+            }
 
             if (empty($lat) && empty($lng)) {
             	/* add to previous map's center */
@@ -211,8 +271,29 @@ if (!class_exists('Leaflet_Map_Plugin')) {
             }
 
             $content .= ", { draggable : {$draggable} });
+            ";
+            
 
+            $content .= "
             marker_{$leaflet_marker_count}.addTo(map_{$leaflet_map_count});
+            ";
+            
+            if (!empty($message)) {
+
+                $content .= "marker_{$leaflet_marker_count}.bindPopup('$message')";
+
+                if ($visible) {
+
+                    $content .= ".openPopup()";                    
+
+                }
+
+                $content .= ";
+                ";
+
+            }
+
+            $content .= "
             });
             </script>";
 
