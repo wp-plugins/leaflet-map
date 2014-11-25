@@ -3,7 +3,7 @@
     Plugin Name: Leaflet Map
     Plugin URI: http://twitter.com/bozdoz/
     Description: A plugin for creating a Leaflet JS map with a shortcode.
-    Version: 1.4
+    Version: 1.5
     Author: Benjamin J DeLong
     Author URI: http://twitter.com/bozdoz/
     License: GPL2
@@ -44,17 +44,12 @@ if (!class_exists('Leaflet_Map_Plugin')) {
                 'leaflet_scroll_wheel_zoom' => 'Disable zoom with mouse scroll wheel.  Sometimes someone wants to scroll down the page, and not zoom the map.  Enabled or disable per map in shortcode: <br/> <code>[leaflet-map scrollwheel="0"]</code>',
             );
 
-        /* count map shortcodes to allow for multiple */
-        public static $leaflet_map_count;
-
-        /* leave marker variables global for possibly manipulation */
-        public static $leaflet_marker_count;
-
         public function __construct() {
             add_action('admin_init', array(&$this, 'admin_init'));
             add_action('admin_menu', array(&$this, 'admin_menu'));
             add_shortcode('leaflet-map', array(&$this, 'map_shortcode'));
             add_shortcode('leaflet-marker', array(&$this, 'marker_shortcode'));
+            add_shortcode('leaflet-image', array(&$this, 'image_shortcode'));
         }
 
         public static function activate () {
@@ -144,6 +139,9 @@ if (!class_exists('Leaflet_Map_Plugin')) {
             return (Object) array('lat' => 0, 'lng' => 0);
         }
 
+        /* count map shortcodes to allow for multiple */
+        public static $leaflet_map_count;
+
         public function map_shortcode ( $atts ) {
             
             if (!$this::$leaflet_map_count) {
@@ -205,32 +203,45 @@ if (!class_exists('Leaflet_Map_Plugin')) {
 
             $content .= "<script>
             var map_{$leaflet_map_count};
-            jQuery(function () {
-                var baseURL = '{$tileurl}';
-               
-                var base = L.tileLayer(baseURL, { 
-                   subdomains: '{$subdomains}'
-                   });
-                map_{$leaflet_map_count} = L.map('leaflet-wordpress-map-{$leaflet_map_count}', 
-                	{
-                		layers: [base],
-                		zoomControl: {$zoomcontrol},
-                		scrollWheelZoom: {$scrollwheel}
-                	}).setView([{$lat}, {$lng}], {$zoom});";
-			
-			if ($show_attr) {
-                /* add attribution to MapQuest and OSM */
-                $content .= 'map_'.$leaflet_map_count.'.attributionControl.addAttribution("Tiles Courtesy of <a href=\"http://www.mapquest.com/\" target=\"_blank\">MapQuest</a> <img src=\"http://developer.mapquest.com/content/osm/mq_logo.png\" />");';
-                $content .= 'map_'.$leaflet_map_count.'.attributionControl.addAttribution("© <a href=\"http://www.openstreetmap.org/\">OpenStreetMap</a> contributors");';
-            }
+            (function () {
+                var previous_onload = window.onload;
+                window.onload = function () {
 
-            $content .= '
-        	});
+                    if ( previous_onload ) {
+                        previous_onload();
+                    }
+
+                    var baseURL = '{$tileurl}';
+                   
+                    var base = L.tileLayer(baseURL, { 
+                       subdomains: '{$subdomains}'
+                       });
+                    map_{$leaflet_map_count} = L.map('leaflet-wordpress-map-{$leaflet_map_count}', 
+                        {
+                            layers: [base],
+                            zoomControl: {$zoomcontrol},
+                            scrollWheelZoom: {$scrollwheel}
+                        }).setView([{$lat}, {$lng}], {$zoom});";
+                    
+                    if ($show_attr) {
+                        /* add attribution to MapQuest and OSM */
+                        $content .= '
+                            map_'.$leaflet_map_count.'.attributionControl.addAttribution("Tiles Courtesy of <a href=\"http://www.mapquest.com/\" target=\"_blank\">MapQuest</a> <img src=\"http://developer.mapquest.com/content/osm/mq_logo.png\" />");';
+                        $content .= '
+                            map_'.$leaflet_map_count.'.attributionControl.addAttribution("© <a href=\"http://www.openstreetmap.org/\">OpenStreetMap</a> contributors");';
+                    }
+
+                    $content .= '
+                }
+            })();
             </script>
             ';
 
             return $content;
         }
+
+        /* leave marker variables global for possibly manipulation */
+        public static $leaflet_marker_count;
 
         public function marker_shortcode ( $atts ) {
 
@@ -250,12 +261,18 @@ if (!class_exists('Leaflet_Map_Plugin')) {
 
             $content = "<script>
             var marker_{$leaflet_marker_count};
-            jQuery(function () {";
+            (function () {
+                var previous_onload = window.onload;
+                window.onload = function () {
+
+                    if ( previous_onload ) {
+                        previous_onload();
+                    }";
 
             if (!empty($atts)) extract($atts);
 
             $draggable = empty($draggable) ? 'false' : $draggable;
-            $visible = ($visible == 'true');
+            $visible = empty($visible) ? false : ($visible == 'true');
 
             if (!empty($address)) {
                 $location = $this::google_geocode($address);
@@ -299,8 +316,86 @@ if (!class_exists('Leaflet_Map_Plugin')) {
             }
 
             $content .= "
-            });
+                };
+            })();
             </script>";
+
+            return $content;
+        }
+
+        public function image_shortcode ( $atts ) {
+            
+            if (!$this::$leaflet_map_count) {
+                $this::$leaflet_map_count = 0;
+            }
+            $this::$leaflet_map_count++;
+
+            $leaflet_map_count = $this::$leaflet_map_count;
+
+            $defaults = array_merge($this::$defaults['text'], $this::$defaults['checks']);
+
+            /* defaults from db */
+            $default_height = get_option('leaflet_default_height', $defaults['leaflet_default_height']);
+            $default_width = get_option('leaflet_default_width', $defaults['leaflet_default_width']);
+            $version = get_option('leaflet_js_version', $defaults['leaflet_js_version']);
+
+            /* leaflet style and script */
+            wp_enqueue_style('leaflet_stylesheet', 'http://cdn.leafletjs.com/leaflet-'.$version.'/leaflet.css', false);
+            wp_enqueue_script('leaflet_js', 'http://cdn.leafletjs.com/leaflet-'.$version.'/leaflet.js', false);
+
+            if ($atts) {
+                extract($atts);
+            }
+
+            /* only required field for image map */
+            $source = empty($source) ? 'http://lorempixel.com/1000/1000/' : $source;
+
+            /* check more user defined $atts against defaults */
+            $height = empty($height) ? $default_height : $height;
+            $width = empty($width) ? $default_width : $width;
+            $zoom = empty($zoom) ? 1 : $zoom;
+            
+            /* allow percent, but add px for ints */
+            $height .= is_numeric($height) ? 'px' : '';
+            $width .= is_numeric($width) ? 'px' : '';   
+            
+            /* should be iterated for multiple maps */
+            $content = '<div id="leaflet-wordpress-image-'.$leaflet_map_count.'" class="leaflet-wordpress-map" style="height:'.$height.'; width:'.$width.';"></div>';
+
+            $content .= "<script>
+            var map_{$leaflet_map_count};
+            (function () {
+                var previous_onload = window.onload;
+                window.onload = function () {
+
+                    if ( previous_onload ) {
+                        previous_onload();
+                    }
+
+                    var image_src = '$source';
+
+                    // get image size
+                    var img = new Image();
+                    img.onload = function() {
+                        var center_h = this.height / 16,
+                            center_w = this.width / 16;
+
+                        map_{$leaflet_map_count}.setView([center_h, center_w], $zoom);
+
+                        L.imageOverlay( image_src, [[ center_h * 2, 0 ], [ 0, center_w * 2]] ).addTo( map_{$leaflet_map_count} );
+                    }
+                    img.src = image_src;
+                    map_{$leaflet_map_count} = L.map('leaflet-wordpress-image-{$leaflet_map_count}', {
+                        maxZoom: 10,
+                        minZoom: 1,
+                        crs: L.CRS.Simple
+                    }).setView([0, 0], $zoom)";
+
+            $content .= '
+                };
+            })();
+            </script>
+            ';
 
             return $content;
         }
