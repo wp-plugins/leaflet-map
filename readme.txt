@@ -6,13 +6,13 @@ Contributors: bozdoz
 Donate link: https://www.gittip.com/bozdoz/
 Tags: leaflet, map, javascript, mapquest
 Requires at least: 3.0.1
-Tested up to: 4.0
-Version: 1.4
-Stable tag: 1.4
+Tested up to: 4.0.1
+Version: 1.9
+Stable tag: 1.9
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-A flexible plugin that adds two shortcodes: one for creating multiple leaflet maps, and one for adding multiple markers to those leaflet maps.
+A flexible plugin that adds basic shortcodes for creating multiple Leaflet maps and adding multiple markers to those maps.
 
 == Description ==
 
@@ -36,7 +36,9 @@ The zoom buttons can be large and annoying.  Enabled or disable per map in short
 
 `[leaflet-map zoomcontrol="0"]`
 
-Add a marker to any map by adding `[leaflet-marker]` after any `[leaflet-map]` shortcode.  You can adjust the lat/lng in the same way, as well as some other basic functionality (popup message, draggable, visible on load).
+Add a marker to any map by adding `[leaflet-marker]` after any `[leaflet-map]` shortcode.  You can adjust the lat/lng in the same way, as well as some other basic functionality (popup message, draggable, visible on load).  Also, if you want to add a link to a marker popup, use `[leaflet-marker]Message here: click here[/leaflet-marker]` and add a link like you normally would with the WordPress editor.
+
+Alternatively, you could use a plain image for visitors to zoom and pan around with `[leaflet-image source="path/to/image/file.jpg"]`.  See screenshots 3 - 5 for help setting that up.
 
 Check out the source code on [GitHub](https://github.com/bozdoz/wp-plugin-leaflet-map)!
 
@@ -51,7 +53,19 @@ Check out the source code on [GitHub](https://github.com/bozdoz/wp-plugin-leafle
 
 * Can I add a message to a marker?
 
-Yes: [leaflet-marker message="Hello there!" visible="true"], where visible designates if it is visible on page load. Otherwise it is only visible when clicked.
+Yes: `[leaflet-marker message="Hello there!" visible="true"]`, where visible designates if it is visible on page load. Otherwise it is only visible when clicked.
+
+* Can I use your plugin with a picture instead of a map?
+
+Yes: Use `[leaflet-image source="path/to/image/file.jpg"]`.  See screenshots 3 - 5 for help setting that up. 
+
+* Can I use my own self-hosted Leaflet files?
+
+Yes: It's been added to the dashboard options! 
+
+* How can I add a link to a marker?
+
+Use the marker format `[leaflet-marker]Click here![/leaflet-marker]` and add a hyperlink like you normally would with the WordPress editor.
 
 Shoot me a question [@bozdoz](http://www.twitter.com/bozdoz/).
 
@@ -59,8 +73,28 @@ Shoot me a question [@bozdoz](http://www.twitter.com/bozdoz/).
 
 1. Put the shortcode into the post.
 2. See the shortcode play out on the front end.
+3. For `[leaflet-image]` upload an image, and copy the URL from the right-hand side
+4. For `[leaflet-image]` paste that image URL into an attribute titled `source`: example: `source="http://lorempixel.com/1000/1000/"`.
+5. See the `[leaflet-image]` on the front end.
+6. If you use `[leaflet-marker draggable=true]`, then you can drag the marker where you want it, open a developers console, and see the specific shortcode to use.
+7. You can specify the URL of your leaflet files, if you don't want to use the CDN url.
 
 == Changelog ==
+
+= 1.9 =
+* Added ability to use hyperlinks in marker messages.
+
+= 1.8 =
+* Added ability to self-host leaflet files.
+
+= 1.7 =
+* Uploaded 1.6 to subversion incorrectly!
+
+= 1.6 =
+* Important fix to conflicts with other plugins!
+
+= 1.5 =
+* Some helpful js fixes for multiple window onload functions, and added the `leaflet-image` shortcode!
 
 = 1.4 =
 * Some fixes for Google geocoding, and switched cookies to db options.
@@ -78,6 +112,21 @@ Shoot me a question [@bozdoz](http://www.twitter.com/bozdoz/).
 * First Version. Basic map creation and marker creation.
 
 == Upgrade Notice ==
+
+= 1.9 =
+Added ability to use hyperlinks in marker messages.
+
+= 1.8 =
+Added ability to self-host leaflet files.
+
+= 1.7 =
+Fix to the poor upload of 1.6
+
+= 1.6 =
+Removed windows onload functions and created a construct and init js file for initiating the maps when Leaflet is ready (other plugins were overwriting windows.onload).
+
+= 1.5 =
+Improved stability for multiple plugins with windows onload functions.
 
 = 1.4 =
 Stable Google geocoding.
